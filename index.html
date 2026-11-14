@@ -112,6 +112,7 @@
   <!-- Main Screen -->
   <section id="building-screen" class="card hidden">
     <h1>make a building</h1>
+    <button id="lock-btn" type="button" style="margin-top: 1.25rem;">Lock</button>
   </section>
 
   <script>
@@ -122,12 +123,14 @@
     const form = document.getElementById("password-form");
     const passwordInput = document.getElementById("password-input");
     const errorMsg = document.getElementById("error-msg");
+    const lockBtn = document.getElementById("lock-btn");
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
       if (passwordInput.value === CORRECT_PASSWORD) {
         errorMsg.textContent = "";
+        passwordInput.value = "";
         lockScreen.classList.add("hidden");
         buildingScreen.classList.remove("hidden");
       } else {
@@ -135,6 +138,14 @@
         passwordInput.value = "";
         passwordInput.focus();
       }
+    });
+
+    lockBtn.addEventListener("click", () => {
+      buildingScreen.classList.add("hidden");
+      lockScreen.classList.remove("hidden");
+      errorMsg.textContent = "";
+      passwordInput.value = "";
+      passwordInput.focus();
     });
   </script>
 </body>
