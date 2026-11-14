@@ -33,6 +33,10 @@
       text-align: center;
     }
 
+    .card-wide {
+      max-width: 720px;
+    }
+
     h1 {
       font-size: 1.5rem;
       margin-bottom: 0.5rem;
@@ -49,7 +53,8 @@
       gap: 0.5rem;
     }
 
-    input[type="password"] {
+    input[type="password"],
+    input[type="text"] {
       flex: 1;
       padding: 0.7rem 0.9rem;
       border-radius: 8px;
@@ -60,7 +65,8 @@
       outline: none;
     }
 
-    input[type="password"]:focus {
+    input[type="password"]:focus,
+    input[type="text"]:focus {
       border-color: #38bdf8;
     }
 
@@ -79,11 +85,86 @@
       background: #7dd3fc;
     }
 
+    .btn-secondary {
+      background: #334155;
+      color: #f8fafc;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
     .error {
       color: #f87171;
       font-size: 0.875rem;
       margin-top: 0.75rem;
       min-height: 1.25rem;
+    }
+
+    .building-list {
+      list-style: none;
+      margin-top: 1.25rem;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .building-list li {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.6rem 0.9rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .building-list li.selected {
+      border-color: #38bdf8;
+      background: #172554;
+    }
+
+    .building-status {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .map-status {
+      margin-top: 1.25rem;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      text-align: left;
+    }
+
+    .city-map {
+      margin-top: 0.5rem;
+      width: 100%;
+      height: 320px;
+      background: #0b1220;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      position: relative;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    .map-marker {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      background: #38bdf8;
+      color: #0f172a;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      white-space: nowrap;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
     }
 
     .hidden {
@@ -110,9 +191,25 @@
   </section>
 
   <!-- Main Screen -->
-  <section id="building-screen" class="card hidden">
+  <section id="building-screen" class="card card-wide hidden">
     <h1>make a building</h1>
-    <button id="lock-btn" type="button" style="margin-top: 1.25rem;">Lock</button>
+    <p>Name your building to get a number starting at #11, then click on the map to place it.</p>
+    <form id="building-form">
+      <input
+        id="building-name-input"
+        type="text"
+        placeholder="e.g. house"
+        autocomplete="off"
+        required
+      />
+      <button type="submit">Create</button>
+    </form>
+    <ul id="building-list" class="building-list" aria-live="polite"></ul>
+
+    <div id="map-status" class="map-status">Create a building above to place it on the map.</div>
+    <div id="city-map" class="city-map" aria-label="Plain city map"></div>
+
+    <button id="lock-btn" class="btn-secondary" type="button" style="margin-top: 1.25rem;">Lock</button>
   </section>
 
   <script>
@@ -125,6 +222,27 @@
     const errorMsg = document.getElementById("error-msg");
     const lockBtn = document.getElementById("lock-btn");
 
+    const buildingForm = document.getElementById("building-form");
+    const buildingNameInput = document.getElementById("building-name-input");
+    const buildingList = document.getElementById("building-list");
+    const mapStatus = document.getElementById("map-status");
+    const cityMap = document.getElementById("city-map");
+
+    let nextNumber = 11;
+    let selectedBuilding = null;
+    const buildings = new Map();
+
+    function selectBuilding(id) {
+      selectedBuilding = id;
+      for (const [key, entry] of buildings.entries()) {
+        entry.item.classList.toggle("selected", key === id);
+      }
+      const current = buildings.get(id);
+      mapStatus.textContent = current
+        ? `Selected: ${current.label} — click anywhere on the map to place it.`
+        : "Create a building above to place it on the map.";
+    }
+
     form.addEventListener("submit", (event) => {
       event.preventDefault();
 
@@ -133,11 +251,61 @@
         passwordInput.value = "";
         lockScreen.classList.add("hidden");
         buildingScreen.classList.remove("hidden");
+        buildingNameInput.focus();
       } else {
         errorMsg.textContent = "Incorrect password. Try again.";
         passwordInput.value = "";
         passwordInput.focus();
       }
+    });
+
+    buildingForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = buildingNameInput.value.trim();
+      if (!name) return;
+
+      const id = nextNumber;
+      const label = `${name} #${id}`;
+      nextNumber += 1;
+
+      const item = document.createElement("li");
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = label;
+      const statusSpan = document.createElement("span");
+      statusSpan.className = "building-status";
+      statusSpan.textContent = "Not placed";
+
+      item.append(nameSpan, statusSpan);
+      item.addEventListener("click", () => selectBuilding(id));
+      buildingList.prepend(item);
+
+      buildings.set(id, { label, item, statusSpan, marker: null });
+      selectBuilding(id);
+
+      buildingNameInput.value = "";
+      buildingNameInput.focus();
+    });
+
+    cityMap.addEventListener("click", (event) => {
+      if (selectedBuilding === null) return;
+      const entry = buildings.get(selectedBuilding);
+      if (!entry) return;
+
+      const rect = cityMap.getBoundingClientRect();
+      const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
+      const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
+
+      if (!entry.marker) {
+        const marker = document.createElement("div");
+        marker.className = "map-marker";
+        marker.textContent = entry.label;
+        cityMap.appendChild(marker);
+        entry.marker = marker;
+      }
+
+      entry.marker.style.left = `${xPercent.toFixed(2)}%`;
+      entry.marker.style.top = `${yPercent.toFixed(2)}%`;
+      entry.statusSpan.textContent = "Placed on map";
     });
 
     lockBtn.addEventListener("click", () => {
