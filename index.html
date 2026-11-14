@@ -275,6 +275,7 @@
       ></textarea>
       <div class="doc-actions">
         <button id="copy-open-doc-btn" type="button">Copy Info &amp; Open Google Doc</button>
+        <button id="copy-all-doc-btn" class="btn-secondary" type="button">Copy All (map tab) &amp; Open Doc</button>
         <a
           id="doc-link"
           class="doc-link"
@@ -310,6 +311,7 @@
     const buildingInfoLabel = document.getElementById("building-info-label");
     const buildingInfoInput = document.getElementById("building-info-input");
     const copyOpenDocBtn = document.getElementById("copy-open-doc-btn");
+    const copyAllDocBtn = document.getElementById("copy-all-doc-btn");
     const copyFeedback = document.getElementById("copy-feedback");
 
     let nextNumber = 11;
@@ -408,25 +410,40 @@
       }
     });
 
-    copyOpenDocBtn.addEventListener("click", async () => {
-      if (selectedBuilding === null) return;
-      const entry = buildings.get(selectedBuilding);
-      if (!entry) return;
-
+    function formatBuildingEntry(entry) {
       const locationText = entry.coords
         ? `Placed at (${entry.coords.x}%, ${entry.coords.y}%)`
         : "Not placed on map yet";
       const notes = entry.info.trim() || "No details provided";
-      const formatted = `${entry.label} — ${locationText}\n${notes}`;
+      return `${entry.label} — ${locationText}\n${notes}`;
+    }
 
+    async function copyAndOpenDoc(text) {
       try {
-        await navigator.clipboard.writeText(formatted);
-        copyFeedback.textContent = "Copied! Paste into your Google Doc.";
+        await navigator.clipboard.writeText(text);
+        copyFeedback.textContent = "Copied! Paste into the 'map' tab in your Google Doc.";
       } catch {
         copyFeedback.textContent = "Opened Google Doc (copy manually if blocked).";
       }
 
       window.open(GOOGLE_DOC_URL, "_blank", "noopener,noreferrer");
+    }
+
+    copyOpenDocBtn.addEventListener("click", () => {
+      if (selectedBuilding === null) return;
+      const entry = buildings.get(selectedBuilding);
+      if (!entry) return;
+
+      copyAndOpenDoc(`${formatBuildingEntry(entry)}\n\n`);
+    });
+
+    copyAllDocBtn.addEventListener("click", () => {
+      if (buildings.size === 0) return;
+      const allText = Array.from(buildings.values())
+        .map(formatBuildingEntry)
+        .join("\n\n");
+
+      copyAndOpenDoc(`${allText}\n\n`);
     });
 
     lockBtn.addEventListener("click", () => {
